@@ -19,3 +19,8 @@
 
 bin/
 gen/
+build/
+.gradle/
+.idea/
+ppdata.dat
+hrmlog.csv
