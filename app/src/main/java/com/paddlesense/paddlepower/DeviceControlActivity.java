@@ -30,8 +30,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
-import android.graphics.Color;
-import android.graphics.Paint.Align;
 import android.os.Bundle;
 
 import android.os.Environment;
@@ -42,9 +40,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-//import android.widget.ExpandableListView;
-//import android.widget.SimpleExpandableListAdapter;
 import android.widget.TextView;
+
+import org.achartengine.GraphicalView;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
@@ -60,13 +58,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-import org.achartengine.ChartFactory;
-import org.achartengine.GraphicalView;
-import org.achartengine.chart.PointStyle;
-import org.achartengine.model.XYMultipleSeriesDataset;
-import org.achartengine.model.XYSeries;
-import org.achartengine.renderer.XYMultipleSeriesRenderer;
-import org.achartengine.renderer.XYSeriesRenderer;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
@@ -100,76 +91,12 @@ public class DeviceControlActivity extends Activity {
 	private ImageButton mButtonStart;
 	private ImageButton mButtonStop;
 
-	// Chart stuff
-	private GraphicalView mChart;
-	private XYMultipleSeriesDataset mDataset = new XYMultipleSeriesDataset();
-	private XYMultipleSeriesRenderer mRenderer = new XYMultipleSeriesRenderer();
-	private XYSeries mCurrentSeries;
-	private XYSeriesRenderer mCurrentRenderer;
+	// Helpers
+	private Analyzer analyzer;
+	private ChartController mChartController;
 
 	//Logging
 	OutputStream output = null;
-
-	private void initChart() {
-
-		Log.i(TAG, "initChart");
-		if (mCurrentSeries == null) {
-			mCurrentSeries = new XYSeries("Heart Rate");
-			mDataset.addSeries(mCurrentSeries);
-			Log.i(TAG, "initChart mCurrentSeries == null");
-		}
-
-		if (mCurrentRenderer == null) {
-			mCurrentRenderer = new XYSeriesRenderer();
-			mCurrentRenderer.setLineWidth(4);
-
-			mCurrentRenderer.setPointStyle(PointStyle.CIRCLE);
-			mCurrentRenderer.setFillPoints(true);
-			mCurrentRenderer.setColor(Color.GREEN);
-			Log.i(TAG, "initChart mCurrentRenderer == null");
-
-			mRenderer.setAxisTitleTextSize(70);
-			mRenderer.setPointSize(5);
-			mRenderer.setYTitle("Time");
-			mRenderer.setYTitle("Heart rate");
-			mRenderer.setPanEnabled(true);
-			mRenderer.setLabelsTextSize(50);
-			mRenderer.setLegendTextSize(50);
-
-			mRenderer.setYAxisMin(0);
-			mRenderer.setYAxisMax(120);
-			mRenderer.setXAxisMin(0);
-			mRenderer.setXAxisMax(100);
-
-			mRenderer.setShowLegend(false);
-
-			mRenderer.setApplyBackgroundColor(true);
-			mRenderer.setBackgroundColor(Color.BLACK);
-			mRenderer.setMarginsColor(Color.BLACK);
-
-			mRenderer.setShowGridY(true);
-			mRenderer.setShowGridX(true);
-			mRenderer.setGridColor(Color.WHITE);
-			// mRenderer.setShowCustomTextGrid(true);
-
-			mRenderer.setAntialiasing(true);
-			mRenderer.setPanEnabled(true, false);
-			mRenderer.setZoomEnabled(true, false);
-			mRenderer.setZoomButtonsVisible(false);
-			mRenderer.setXLabelsColor(Color.WHITE);
-			mRenderer.setYLabelsColor(0, Color.WHITE);
-			mRenderer.setXLabelsAlign(Align.CENTER);
-			mRenderer.setXLabelsPadding(10);
-			mRenderer.setXLabelsAngle(-30.0f);
-			mRenderer.setYLabelsAlign(Align.RIGHT);
-			mRenderer.setPointSize(3);
-			mRenderer.setInScroll(true);
-			// mRenderer.setShowLegend(false);
-			mRenderer.setMargins(new int[] { 50, 150, 10, 50 });
-
-			mRenderer.addSeriesRenderer(mCurrentRenderer);
-		}
-	}
 
 	// Code to manage Service lifecycle.
 	private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -223,7 +150,7 @@ public class DeviceControlActivity extends Activity {
 						.getSupportedGattServices());
 				// mButtonStop.setVisibility(View.VISIBLE);
 			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-				displayData(intent
+				processData(intent
 						.getStringExtra(BluetoothLeService.EXTRA_DATA));
 			}
 		}
@@ -234,6 +161,27 @@ public class DeviceControlActivity extends Activity {
 		mDataField.setText(R.string.no_data);
 	}
 
+	private void processData(String data) {
+		if (data != null) {
+			long time = (new Date()).getTime();
+			float dataElement = Float.parseFloat(data);
+
+
+			// Log a stroke point
+			StrokePoint sp = new StrokePoint();
+			sp.time = time;
+			sp.force = dataElement;
+
+			appendLog(sp);
+
+			// Update the analyzer
+			analyzer.addReading(sp);
+
+			// update the display if necessary
+			updateDisplay();
+		}
+	}
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -241,6 +189,9 @@ public class DeviceControlActivity extends Activity {
 		Log.i(TAG, "onCreate");
 
 		setContentView(R.layout.paddlepower);
+
+		// Analyzer for analyzing points
+		analyzer = new Analyzer();
 
 		// getWindow().addFlags(LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -275,16 +226,16 @@ public class DeviceControlActivity extends Activity {
 		this.startService(gattServiceIntent);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
+		// Add the chart
 		LinearLayout layout = (LinearLayout) findViewById(R.id.chart);
-		if (mChart == null) {
-			initChart();
-			mChart = ChartFactory.getTimeChartView(this, mDataset, mRenderer,
-					"hh:mm");
+
+		if (mChartController == null) {
+			mChartController = new ChartController();
+			GraphicalView mChart = mChartController.initChart(this);
 			layout.addView(mChart);
 		} else {
-			mChart.repaint();
+			mChartController.repaint();
 		}
-
 	}
 
 	@Override
@@ -397,51 +348,14 @@ public class DeviceControlActivity extends Activity {
 
 	int x = 0;
 
-	private void displayData(String data) {
-		try {
-			if (data != null) {
+	private void updateDisplay() {
+		// Update the current power reading
+		mDataField.setText("Power: " + analyzer.getStrokePower());
 
-				long time = (new Date()).getTime();
-				float dataElement = Float.parseFloat(data);
-				mCurrentSeries.add(time, dataElement);
-
-				// Log a stroke point
-				StrokePoint sp = new StrokePoint();
-				sp.time = time;
-				sp.force = dataElement;
-
-				Log.d(TAG, String.format("Displaying %d, %.2f", sp.time, sp.force));
-
-				appendLog(sp);
-				//datasource.createEvent(1, time, dataElement);
-				// Storing last 600 only - should average... 
-				while (mCurrentSeries.getItemCount() > 60*10) {
-					mCurrentSeries.remove(0);
-				}
-				
-				if (currentlyVisible) {
-					mDataField.setText("Pulse: " + data);
-
-					mRenderer.setYAxisMin(0);
-					mRenderer.setYAxisMax(mCurrentSeries.getMaxY() + 20);
-
-					double minx = mCurrentSeries.getMinX();
-					double maxx = mCurrentSeries.getMaxX();
-
-					if ((maxx - minx) < 5 * 60 * 1000) {
-						mRenderer.setXAxisMin(minx);
-						mRenderer.setXAxisMax(minx + (5 * 60 * 1000));
-					} else {
-						mRenderer.setXAxisMin(maxx - (5 * 60 * 1000));
-						mRenderer.setXAxisMax(maxx);
-					}
-
-					mChart.repaint();
-					mChart.zoomReset();
-				} 
-			}
-		} catch (Exception e) {
-			Log.e(TAG, "Exception while parsing: " + data);
+		// Check with the analyzer if the display is updated, likely if we've finished a stroke
+		if (analyzer.isInReturn()) {
+			List<StrokePoint> points = analyzer.getReadings();
+			mChartController.addSeries(points);
 		}
 	}
 

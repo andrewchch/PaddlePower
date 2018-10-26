@@ -335,7 +335,22 @@ public class BluetoothLeService extends Service {
 			return;
 		}
 		mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
-		Log.i(TAG, "Characteristic notification enabled");
+
+		try {
+			// This is specific to Heart Rate Measurement.
+			if (UUID_PADDLE_POWER_MEASUREMENT.equals(characteristic.getUuid())) {
+				BluetoothGattDescriptor descriptor = characteristic
+						.getDescriptor(UUID
+								.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+				descriptor
+						.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+				mBluetoothGatt.writeDescriptor(descriptor);
+				Log.i(TAG, "Characteristic notification enabled");
+			}
+		} catch (Exception e) {
+			Log.d(TAG,
+					"Exception while setting up notification for heartrate.", e);
+		}
 	}
 
 	/**

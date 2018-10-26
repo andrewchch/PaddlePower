@@ -15,6 +15,11 @@ public class Analyzer {
     private ArrayList<StrokePoint> strokePoints = new ArrayList<StrokePoint>();
     private ArrayList<StrokePoint> returnPoints = new ArrayList<StrokePoint>();
 
+    StrokePoint addReading(StrokePoint sp) {
+        strokePoints.add(sp);
+        return sp;
+    }
+
     public StrokePoint addReading(float reading, long time) {
         StrokePoint strokePoint = null;
 
@@ -43,7 +48,6 @@ public class Analyzer {
                 returnPoints.add(strokePoint);
 
                 if (returnPoints.size() >= RETURN_POINTS_THRESHOLD) {
-                    clearReadings();
                     inReturn = true;
                 }
             }
@@ -76,5 +80,9 @@ public class Analyzer {
         }
 
         return totalPower;
+    }
+
+    public boolean isInReturn () {
+        return inReturn;
     }
 }

@@ -30,6 +30,7 @@ public class SampleGattAttributes {
     private static HashMap<String, String> attributes = new HashMap();
     public static String PADDLE_POWER_SERVICE = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
     public static String PADDLE_POWER_MEASUREMENT = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
     static {
         // Sample Services.
