@@ -58,6 +58,7 @@ limitations under the License.
             </intent-filter>
         </activity>
         <activity
+            android:screenOrientation="landscape"
             android:name=".DeviceControlActivity"
             android:configChanges="keyboardHidden|orientation|screenSize" />
         <activity
@@ -81,6 +82,8 @@ limitations under the License.
             android:enabled="true" />
 
         <activity
+            android:screenOrientation="landscape"
+            android:exported="true"
             android:name=".ChartTestActivity"
             android:label="@string/title_activity_chart_test"></activity>
     </application>

@@ -65,7 +65,7 @@ import java.util.UUID;
  * device. The Activity communicates with {@code BluetoothLeService}, which in
  * turn interacts with the Bluetooth LE API.
  */
-public class DeviceControlActivity extends Activity {
+public class DeviceControlActivity extends Activity implements IVisible {
 	private final static String TAG = DeviceControlActivity.class
 			.getSimpleName();
 
@@ -156,6 +156,19 @@ public class DeviceControlActivity extends Activity {
 		}
 	};
 
+	// Handles various events fired by the Analyzer
+	// STROKE_POINTS_AVAILABLE: a new stroke dataset is available for display
+	private final BroadcastReceiver mStrokeDataReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			final String action = intent.getAction();
+			if (Analyzer.STROKE_POINTS_AVAILABLE.equals(action)) {
+				updateDisplay();
+				invalidateOptionsMenu();
+			}
+		}
+	};
+
 	private void clearUI() {
 		// mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
 		mDataField.setText(R.string.no_data);
@@ -191,7 +204,7 @@ public class DeviceControlActivity extends Activity {
 		setContentView(R.layout.paddlepower);
 
 		// Analyzer for analyzing points
-		analyzer = new Analyzer();
+		analyzer = new Analyzer(this);
 
 		// getWindow().addFlags(LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -242,8 +255,16 @@ public class DeviceControlActivity extends Activity {
 	protected void onResume() {
 		super.onResume();
 		currentlyVisible = true;
-		
+
+		// Process Gatt updates from the BLE service
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		if (mBluetoothLeService != null) {
+			final boolean result = mBluetoothLeService.connect(mDeviceAddress);
+			Log.d(TAG, "Connect request result=" + result);
+		}
+
+		// Process availability of a new stroke dataset from the Analyzer
+		registerReceiver(mStrokeDataReceiver, makeStrokeDataIntentFilter());
 		if (mBluetoothLeService != null) {
 			final boolean result = mBluetoothLeService.connect(mDeviceAddress);
 			Log.d(TAG, "Connect request result=" + result);
@@ -349,14 +370,11 @@ public class DeviceControlActivity extends Activity {
 	int x = 0;
 
 	private void updateDisplay() {
+		// A new stroke dataset is available for display
 		// Update the current power reading
 		mDataField.setText("Power: " + analyzer.getStrokePower());
-
-		// Check with the analyzer if the display is updated, likely if we've finished a stroke
-		if (analyzer.isInReturn()) {
-			List<StrokePoint> points = analyzer.getReadings();
-			mChartController.addSeries(points);
-		}
+		List<StrokePoint> points = analyzer.getReadings();
+		mChartController.addSeries(points);
 	}
 
 	// Demonstrates how to iterate through the supported GATT
@@ -420,6 +438,12 @@ public class DeviceControlActivity extends Activity {
 		intentFilter
 				.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
 		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+		return intentFilter;
+	}
+
+	private static IntentFilter makeStrokeDataIntentFilter() {
+		final IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(Analyzer.STROKE_POINTS_AVAILABLE);
 		return intentFilter;
 	}
 
@@ -507,5 +531,10 @@ public class DeviceControlActivity extends Activity {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	@Override
+	public boolean isCurrentlyVisible() {
+		return currentlyVisible;
 	}
 }

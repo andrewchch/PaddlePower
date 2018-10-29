@@ -81,8 +81,6 @@ public class BluetoothLeService extends Service {
 				.setSmallIcon(R.drawable.ic_launcher)
 				.build();
 
-		Intent notificationIntent = new Intent(this, BluetoothLeService.class);
-		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 		this.startForeground(1, notification);
 
 		return Service.START_NOT_STICKY;
@@ -161,8 +159,12 @@ public class BluetoothLeService extends Service {
                 intent.putExtra(EXTRA_DATA, new String(data) + "\n"
                         + stringBuilder.toString());
             }
-            double force = 0.01 * (data[1] * 256 + data[0]);
-			Log.d(TAG, String.format("Received force value: %2.2f, %d, %d", force, data[0], data[1]));
+
+            // Convert bytes to a force
+			int b0 = data[0] & 0xFF;
+			int b1 = data[1] & 0xFF;
+			double force = 0.01 * (b1 * 256 + b0);
+			Log.d(TAG, String.format("Received force value: %2.2f, %d, %d", force, b0, b1));
 			intent.putExtra(EXTRA_DATA, String.valueOf(force));
 		} else {
 			// For all other profiles, writes the data formatted in HEX.

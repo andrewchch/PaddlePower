@@ -16,6 +16,14 @@ public class StrokePoint {
             TB_C = timeBuffer.capacity();
 
 
+    public StrokePoint (float force, long time) {
+        this.force = force;
+        this.time = time;
+    }
+
+    public StrokePoint () {
+    }
+
     // TODO: add a method that returns an int (= 4 bytes) delta time rather than epoch time (long = 8 bytes)
     // to save space
     public byte[] toBytes() {

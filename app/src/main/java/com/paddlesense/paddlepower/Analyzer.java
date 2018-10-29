@@ -1,19 +1,27 @@
 package com.paddlesense.paddlepower;
 
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+
 import java.util.Date;
 import java.util.*;
-import org.junit.Test;
-import java.util.regex.Pattern;
-import static org.junit.Assert.*;
+import java.util.logging.Logger;
 
 public class Analyzer {
 
-    private static float FORCE_THRESHOLD = 0.1f;
-    private static int RETURN_POINTS_THRESHOLD = 5;
     private boolean inReturn = false;
+    private String TAG = "Analyzer";
 
-    private ArrayList<StrokePoint> strokePoints = new ArrayList<StrokePoint>();
-    private ArrayList<StrokePoint> returnPoints = new ArrayList<StrokePoint>();
+    private ArrayList<StrokePoint> strokePoints = new ArrayList<>();
+    private ArrayList<StrokePoint> returnPoints = new ArrayList<>();
+    private Context mContext;
+
+    public final static String STROKE_POINTS_AVAILABLE = "com.paddlesense.paddlepower.STROKE_POINTS_AVAILABLE";
+
+    public Analyzer (Context context) {
+        mContext = context;
+    }
 
     StrokePoint addReading(StrokePoint sp) {
         strokePoints.add(sp);
@@ -28,12 +36,16 @@ public class Analyzer {
         }
 
         // We're either stroking or returning to the start of the stroke
+        float FORCE_THRESHOLD = 0.1f;
         if (reading > FORCE_THRESHOLD) {
-            // Stroking
-            inReturn = false;
-            if (returnPoints.size() > 0) {
-                returnPoints.clear();
+            // Now stroking
+            if (inReturn) {
+                // Was just returning so clear the readings
+                strokePoints.clear();
             }
+            inReturn = false;
+            returnPoints.clear();
+
             strokePoint = new StrokePoint();
             strokePoint.force = reading;
             strokePoint.time = time;
@@ -42,13 +54,20 @@ public class Analyzer {
         else {
             // Returning
             if (!inReturn) {
+                //Log.d(TAG, "Returning");
                 strokePoint = new StrokePoint();
                 strokePoint.force = reading;
                 strokePoint.time = time;
                 returnPoints.add(strokePoint);
 
+                int RETURN_POINTS_THRESHOLD = 5;
                 if (returnPoints.size() >= RETURN_POINTS_THRESHOLD) {
                     inReturn = true;
+
+                    // Broadcast that we have stroke points
+                    if (strokePoints.size() > 0) {
+                        broadcastPointsAvailable();
+                    }
                 }
             }
         }
@@ -56,12 +75,19 @@ public class Analyzer {
         return strokePoint;
     }
 
-    public void clearReadings () {
-        strokePoints.clear();
+    public void broadcastPointsAvailable () {
+        //Log.d(TAG, "Broadcasting points availability");
+        final Intent intent = new Intent(STROKE_POINTS_AVAILABLE);
+        mContext.sendBroadcast(intent);
     }
 
     public List<StrokePoint> getReadings() {
         return strokePoints;
+    }
+
+    public void clearReadings() {
+        strokePoints.clear();
+        returnPoints.clear();
     }
 
     /*
