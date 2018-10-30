@@ -6,7 +6,6 @@ import android.util.Log;
 
 import java.util.Date;
 import java.util.*;
-import java.util.logging.Logger;
 
 public class Analyzer {
 
@@ -23,11 +22,6 @@ public class Analyzer {
         mContext = context;
     }
 
-    StrokePoint addReading(StrokePoint sp) {
-        strokePoints.add(sp);
-        return sp;
-    }
-
     public StrokePoint addReading(float reading, long time) {
         StrokePoint strokePoint = null;
 
@@ -38,6 +32,7 @@ public class Analyzer {
         // We're either stroking or returning to the start of the stroke
         float FORCE_THRESHOLD = 0.1f;
         if (reading > FORCE_THRESHOLD) {
+            Log.d(TAG, "Stroking");
             // Now stroking
             if (inReturn) {
                 // Was just returning so clear the readings
@@ -52,9 +47,10 @@ public class Analyzer {
             strokePoints.add(strokePoint);
         }
         else {
+            Log.d(TAG, "Force less than threshold");
             // Returning
             if (!inReturn) {
-                //Log.d(TAG, "Returning");
+                Log.d(TAG, "Returning");
                 strokePoint = new StrokePoint();
                 strokePoint.force = reading;
                 strokePoint.time = time;
@@ -76,7 +72,7 @@ public class Analyzer {
     }
 
     public void broadcastPointsAvailable () {
-        //Log.d(TAG, "Broadcasting points availability");
+        Log.d(TAG, "Broadcasting points availability");
         final Intent intent = new Intent(STROKE_POINTS_AVAILABLE);
         mContext.sendBroadcast(intent);
     }

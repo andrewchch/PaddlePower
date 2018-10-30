@@ -161,6 +161,7 @@ public class DeviceControlActivity extends Activity implements IVisible {
 	private final BroadcastReceiver mStrokeDataReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
+			Log.d(TAG , "In mStrokeDataReceiver");
 			final String action = intent.getAction();
 			if (Analyzer.STROKE_POINTS_AVAILABLE.equals(action)) {
 				updateDisplay();
@@ -179,7 +180,6 @@ public class DeviceControlActivity extends Activity implements IVisible {
 			long time = (new Date()).getTime();
 			float dataElement = Float.parseFloat(data);
 
-
 			// Log a stroke point
 			StrokePoint sp = new StrokePoint();
 			sp.time = time;
@@ -188,10 +188,7 @@ public class DeviceControlActivity extends Activity implements IVisible {
 			appendLog(sp);
 
 			// Update the analyzer
-			analyzer.addReading(sp);
-
-			// update the display if necessary
-			updateDisplay();
+			analyzer.addReading(dataElement, time);
 		}
 	}
 
