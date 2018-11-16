@@ -62,7 +62,8 @@ public class AnalyzerTest {
     @Before
     public void setUp() throws Exception {
         context = mock(Context.class);
-        analyzer = new Analyzer(context);
+        DataLogger logger = mock(DataLogger.class);
+        analyzer = new Analyzer(context, logger);
         analyzer.clearReadings();
     }
 

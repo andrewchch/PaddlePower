@@ -32,7 +32,6 @@ import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.os.Bundle;
 
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
@@ -44,16 +43,7 @@ import android.widget.TextView;
 
 import org.achartengine.GraphicalView;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -93,10 +83,8 @@ public class DeviceControlActivity extends Activity implements IVisible {
 
 	// Helpers
 	private Analyzer analyzer;
+	private DataLogger logger;
 	private ChartController mChartController;
-
-	//Logging
-	OutputStream output = null;
 
 	// Code to manage Service lifecycle.
 	private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -182,8 +170,11 @@ public class DeviceControlActivity extends Activity implements IVisible {
 
 		setContentView(R.layout.paddlepower);
 
+		//Logger for logging data
+		logger = new DataLogger();
+
 		// Analyzer for analyzing points
-		analyzer = new Analyzer(this);
+		analyzer = new Analyzer(this, logger);
 
 		// getWindow().addFlags(LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -426,21 +417,6 @@ public class DeviceControlActivity extends Activity implements IVisible {
 		return intentFilter;
 	}
 
-	/*
-	We need to binary write stroke points to save space
-	 */
-	public void appendLog(StrokePoint sp) {
-		// Convert the point to bytes
-		byte[] outBytes = sp.toBytes();
-
-		try {
-			output.write(outBytes);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
 	private void startLogging() {
 		mButtonStop.setVisibility(View.VISIBLE);
 		mButtonStart.setVisibility(View.GONE);
@@ -449,24 +425,7 @@ public class DeviceControlActivity extends Activity implements IVisible {
 		invalidateOptionsMenu();
 		logging = true;
 
-		// Open the log file
-		File logFile = new File(Environment.getExternalStorageDirectory()
-				.getPath() + "/ppdata.dat");
-
-		if (!logFile.exists()) {
-			try {
-				logFile.createNewFile();
-			} catch (IOException e) {
-				Log.e(TAG, "Error while creating file. ", e);
-				e.printStackTrace();
-			}
-		}
-
-		try {
-			output = new BufferedOutputStream(new FileOutputStream(logFile));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
+		logger.openLog();
 	}
 
 	private void stopLogging() {
@@ -478,14 +437,7 @@ public class DeviceControlActivity extends Activity implements IVisible {
 		invalidateOptionsMenu();
 		logging = false;
 
-		// Close the log file
-		if (output != null) {
-			try {
-				output.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+		logger.closeLog();
 	}
 
 	@Override

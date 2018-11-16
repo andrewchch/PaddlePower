@@ -2,17 +2,10 @@ package com.paddlesense.paddlepower;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Environment;
 import android.util.Log;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Date;
 import java.util.*;
-
-
 
 public class Analyzer {
 
@@ -22,6 +15,7 @@ public class Analyzer {
     private ArrayList<StrokePoint> strokePoints = new ArrayList<>();
     private ArrayList<StrokePoint> returnPoints = new ArrayList<>();
     private Context mContext;
+    private DataLogger mLogger;
 
     public final static String STROKE_POINTS_AVAILABLE = "com.paddlesense.paddlepower.STROKE_POINTS_AVAILABLE";
 
@@ -32,20 +26,23 @@ public class Analyzer {
     public final static int MIN_READINGS = 50;
     public final static int MAX_READINGS = 100;
 
-    public Analyzer (Context context) {
+    public Analyzer (Context context, DataLogger logger) {
         mContext = context;
+        mLogger = logger;
     }
 
     public StrokePoint addReading(float reading, long time) {
-        StrokePoint strokePoint = null;
+        StrokePoint strokePoint = new StrokePoint();
+        strokePoint.force = reading;
+        strokePoint.time = time;
+        addReading(strokePoint);
+        return strokePoint;
+    }
 
-        if (time == 0) {
-            time = (new Date()).getTime();
-        }
-
+    public StrokePoint addReading(StrokePoint strokePoint) {
         // We're either stroking or returning to the start of the stroke
         float FORCE_THRESHOLD = 0.1f;
-        if (reading > FORCE_THRESHOLD) {
+        if (strokePoint.force > FORCE_THRESHOLD) {
             Log.d(TAG, "Stroking");
             // Now stroking
             if (inReturn) {
@@ -55,9 +52,6 @@ public class Analyzer {
             inReturn = false;
             returnPoints.clear();
 
-            strokePoint = new StrokePoint();
-            strokePoint.force = reading;
-            strokePoint.time = time;
             strokePoints.add(strokePoint);
         }
         else {
@@ -65,9 +59,6 @@ public class Analyzer {
             // Returning
             if (!inReturn) {
                 Log.d(TAG, "Returning");
-                strokePoint = new StrokePoint();
-                strokePoint.force = reading;
-                strokePoint.time = time;
                 returnPoints.add(strokePoint);
 
                 int RETURN_POINTS_THRESHOLD = 5;
@@ -144,60 +135,26 @@ public class Analyzer {
     */
     public void processData(byte[] data) {
 
-        if (data != null && data.length > 0) {
-            final StringBuilder stringBuilder = new StringBuilder(
-                    data.length);
-            for (byte byteChar : data)
-                stringBuilder.append(String.format("%02X ", byteChar));
-            intent.putExtra(EXTRA_DATA, new String(data) + "\n"
-                    + stringBuilder.toString());
-        }
-
         // Get first two sequence bytes
         int stroke_seq_no = data[0] & 0xFF;
         int b1ock_seq_no = data[1] & 0xFF;
 
-        // Convert bytes to a force
-        double force = 0.01 * (b1 * 256 + b0);
-        Log.d(TAG, String.format("Received force value: %2.2f, %d, %d", force, b0, b1));
+        // Process readings from the rest of the payload
+        for (int i=BLE_DATA_LENGTH; i<BLE_MAX_BYTES; i += BLE_DATA_LENGTH) {
+            float force = 0.01f * (data[i] * 256 + data[i+1]);
+            Log.d(TAG, String.format("Received force value: %2.2f, %d, %d", force, data[i], data[i+1]));
 
-        if (data != null) {
             long time = (new Date()).getTime();
-            float dataElement = Float.parseFloat(data);
 
             // Log a stroke point
             StrokePoint sp = new StrokePoint();
             sp.time = time;
-            sp.force = dataElement;
+            sp.force = force;
 
-            appendLog(sp);
+            mLogger.appendLog(sp);
 
             // Update the analyzer
-            addReading(dataElement, time);
-        }
-    }
-
-    public void appendLog(String text) {
-        File logFile = new File(Environment.getExternalStorageDirectory()
-                .getPath() + "/pplog.csv");
-        if (!logFile.exists()) {
-            try {
-                logFile.createNewFile();
-            } catch (IOException e) {
-                Log.e(TAG, "Error while creating file. ", e);
-                e.printStackTrace();
-            }
-        }
-        try {
-            // BufferedWriter for performance, true to set append to file flag
-            BufferedWriter buf = new BufferedWriter(new FileWriter(logFile,
-                    true));
-            buf.append(text);
-            buf.newLine();
-            buf.close();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            addReading(sp);
         }
     }
 }
