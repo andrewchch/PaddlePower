@@ -151,21 +151,7 @@ public class BluetoothLeService extends Service {
 		if (UUID_PADDLE_POWER_MEASUREMENT.equals(characteristic.getUuid())) {
             // Convert the first two bytes of characteristic data to a float
             final byte[] data = characteristic.getValue();
-            if (data != null && data.length > 0) {
-                final StringBuilder stringBuilder = new StringBuilder(
-                        data.length);
-                for (byte byteChar : data)
-                    stringBuilder.append(String.format("%02X ", byteChar));
-                intent.putExtra(EXTRA_DATA, new String(data) + "\n"
-                        + stringBuilder.toString());
-            }
-
-            // Convert bytes to a force
-			int b0 = data[0] & 0xFF;
-			int b1 = data[1] & 0xFF;
-			double force = 0.01 * (b1 * 256 + b0);
-			Log.d(TAG, String.format("Received force value: %2.2f, %d, %d", force, b0, b1));
-			intent.putExtra(EXTRA_DATA, String.valueOf(force));
+			intent.putExtra(EXTRA_DATA, data);
 		} else {
 			// For all other profiles, writes the data formatted in HEX.
 			final byte[] data = characteristic.getValue();

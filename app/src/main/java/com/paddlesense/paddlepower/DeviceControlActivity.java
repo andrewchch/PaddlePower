@@ -150,8 +150,7 @@ public class DeviceControlActivity extends Activity implements IVisible {
 						.getSupportedGattServices());
 				// mButtonStop.setVisibility(View.VISIBLE);
 			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-				processData(intent
-						.getStringExtra(BluetoothLeService.EXTRA_DATA));
+				analyzer.processData(intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA));
 			}
 		}
 	};
@@ -173,23 +172,6 @@ public class DeviceControlActivity extends Activity implements IVisible {
 	private void clearUI() {
 		// mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
 		mDataField.setText(R.string.no_data);
-	}
-
-	private void processData(String data) {
-		if (data != null) {
-			long time = (new Date()).getTime();
-			float dataElement = Float.parseFloat(data);
-
-			// Log a stroke point
-			StrokePoint sp = new StrokePoint();
-			sp.time = time;
-			sp.force = dataElement;
-
-			appendLog(sp);
-
-			// Update the analyzer
-			analyzer.addReading(dataElement, time);
-		}
 	}
 
 	@Override
@@ -442,30 +424,6 @@ public class DeviceControlActivity extends Activity implements IVisible {
 		final IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(Analyzer.STROKE_POINTS_AVAILABLE);
 		return intentFilter;
-	}
-
-	public void appendLog(String text) {
-		File logFile = new File(Environment.getExternalStorageDirectory()
-				.getPath() + "/pplog.csv");
-		if (!logFile.exists()) {
-			try {
-				logFile.createNewFile();
-			} catch (IOException e) {
-				Log.e(TAG, "Error while creating file. ", e);
-				e.printStackTrace();
-			}
-		}
-		try {
-			// BufferedWriter for performance, true to set append to file flag
-			BufferedWriter buf = new BufferedWriter(new FileWriter(logFile,
-					true));
-			buf.append(text);
-			buf.newLine();
-			buf.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
 	/*
